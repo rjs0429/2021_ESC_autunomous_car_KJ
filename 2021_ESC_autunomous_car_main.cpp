@@ -51,6 +51,9 @@ Scalar upper_white = Scalar(255, 255, 255);
 Scalar lower_yellow = Scalar(10, 100, 100); //노란색 차선 (HSV)
 Scalar upper_yellow = Scalar(40, 255, 255);
 
+//통신 on/off
+boolean Communication = false;
+
 //통신변수
 WSADATA wsaData;
 SOCKET hListen;
@@ -65,11 +68,35 @@ int width_w, height_w;
 
 //통신
 void tcp_server(float msg) {
-	char temp[4];
-	memcpy(temp, &msg, sizeof(float));
-	send(hClient, temp, strlen(temp), 0);
-	cout << "Server Msg : " << msg << endl;
+	if (Communication) {
+		char temp[4];
+		memcpy(temp, &msg, sizeof(float));
+		send(hClient, temp, strlen(temp), 0);
+		cout << "Server Msg : " << msg << endl;
+	}
 }
+
+//통신 시작 / 종료
+void tcp_server_onoff(double check) {
+	if (Communication) {
+		if (check) {
+			WSAStartup(MAKEWORD(2, 2), &wsaData);
+			hListen = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+			tListenAddr.sin_family = AF_INET;
+			tListenAddr.sin_port = htons(PORT);
+			tListenAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+			bind(hListen, (SOCKADDR*)&tListenAddr, sizeof(tListenAddr));
+			listen(hListen, SOMAXCONN);
+			iClntSize = sizeof(tClntAddr);
+			hClient = accept(hListen, (SOCKADDR*)&tClntAddr, &iClntSize);
+		}
+		else {
+			closesocket(hClient);
+			closesocket(hListen);
+		}
+	}
+}
+
 //ROI
 Mat region_of_interest(Mat img_edges, Point* points, int i)
 {
@@ -350,25 +377,6 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 	}
 	tcp_server(slope_s);
 	cout << "왼쪽차선 기울기 : " << slope_l << "\t오른쪽차선 기울기 : " << slope_r << "\n\t\t중앙선 기울기 : " << slope_s << endl;
-}
-
-//통신 시작 / 종료
-void tcp_server_onoff(double check) {
-	if (check) {
-		WSAStartup(MAKEWORD(2, 2), &wsaData);
-		hListen = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-		tListenAddr.sin_family = AF_INET;
-		tListenAddr.sin_port = htons(PORT);
-		tListenAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-		bind(hListen, (SOCKADDR*)&tListenAddr, sizeof(tListenAddr));
-		listen(hListen, SOMAXCONN);
-		iClntSize = sizeof(tClntAddr);
-		hClient = accept(hListen, (SOCKADDR*)&tClntAddr, &iClntSize);
-	}
-	else {
-		closesocket(hClient);
-		closesocket(hListen);
-	}
 }
 
 //영상처리 메인
