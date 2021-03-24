@@ -324,6 +324,7 @@ int video_main(string videoname, string filename) {
 
 	if (!videoCapture.isOpened())
 	{
+		cout << videoname << endl;
 		cout << "동영상 파일을 열수 없습니다. \n" << endl;
 
 		char a;
@@ -438,7 +439,7 @@ int video_main(string videoname, string filename) {
 		writer << img_annotated;
 
 		count++;
-		if (count == 10) imwrite("img_annota1ted.jpg", img_annotated);
+		if (count == 10) imwrite("D:\\OneDrive - 공주대학교\\자율주행_프로젝트\\curb_test.jpg", img_annotated);
 
 		//결과를 화면에 보여줌 
 		Mat img_result;
