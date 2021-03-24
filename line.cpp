@@ -63,9 +63,6 @@ Mat region_of_interest(Mat img_edges, Point* points, int i)
 	return img_masked;
 }
 
-
-
-
 void filter_colors(Mat _img_bgr, Mat& img_filtered)
 {
 	// 노란색과 흰색 픽셀만 포함하도록 이미지 필터링
@@ -95,8 +92,6 @@ void filter_colors(Mat _img_bgr, Mat& img_filtered)
 	img_combine.copyTo(img_combine_w);
 	img_combine.copyTo(img_filtered);
 }
-
-
 
 void draw_line(Mat& img_line, vector<Vec4i> lines)
 {
@@ -144,7 +139,6 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 		else
 			slope = (y2 - y1) / (float)(x2 - x1);
 
-
 		//경사를 기준으로 선 필터링
 		if (abs(slope) > slope_threshold) {
 			slopes.push_back(slope);
@@ -169,7 +163,6 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 		int y1 = line[1];
 		int x2 = line[2];
 		int y2 = line[3];
-
 
 		float cx = width * 0.5; //x 이미지 중앙의 좌표
 
@@ -211,8 +204,6 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 		gsl_fit_linear(right_lines_x, 1, right_lines_y, 1, right_index,
 			&c0, &c1, &cov00, &cov01, &cov11, &sumsq);
 
-		//printf("# best fit: Y = %g + %g X\n", c0, c1);
-
 		right_m = c1;
 		right_b = c0;
 	}
@@ -251,8 +242,6 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 		double c0, c1, cov00, cov01, cov11, sumsq;
 		gsl_fit_linear(left_lines_x, 1, left_lines_y, 1, left_index,
 			&c0, &c1, &cov00, &cov01, &cov11, &sumsq);
-
-		//printf("# best fit: Y = %g + %g X\n", c0, c1);
 
 		left_m = c1;
 		left_b = c0;
