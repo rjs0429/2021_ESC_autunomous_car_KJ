@@ -3,7 +3,7 @@
 #define PI 3.1415926535
 #define SC 1.5					//영상 표시 스케일
 
-using namespace cv;
+//using namespace cv;			//헤더 파일로 이동
 
 //Hough Transform 파라미터
 float rho = 2; // Hough 그리드의 거리 분해능(픽셀 단위)
@@ -312,8 +312,14 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 		}
 	}
 	tcp_server(slope_s);
-	cout << "왼쪽차선 기울기 : " << slope_l << "\t오른쪽차선 기울기 : " << slope_r << "\n\t\t중앙선 기울기 : " << slope_s << endl;
+	//cout << "왼쪽차선 기울기 : " << slope_l << "\t오른쪽차선 기울기 : " << slope_r << "\n\t\t중앙선 기울기 : " << slope_s << endl;
 }
+
+
+
+
+
+
 
 //영상처리 메인
 int video_main(string videoname, string filename) {
@@ -321,6 +327,7 @@ int video_main(string videoname, string filename) {
 	Mat img_bgr, img_gray, img_edges, img_edge[2], img_hough, img_annotated;
 
 	VideoCapture videoCapture(videoname);
+
 
 	if (!videoCapture.isOpened())
 	{
@@ -333,8 +340,6 @@ int video_main(string videoname, string filename) {
 		return 1;
 	}
 
-
-
 	videoCapture.read(img_bgr);
 	if (img_bgr.empty()) return -1;
 
@@ -342,6 +347,7 @@ int video_main(string videoname, string filename) {
 	int codec = VideoWriter::fourcc('X', 'V', 'I', 'D');  // 원하는 코덱 선택(런타임 시 사용할 수 있어야 함)
 	double fps = 10.0;                          // 생성된 비디오 스트림 프레임률
 	writer.open(filename, codec, fps, img_bgr.size(), CV_8UC3);
+
 	// 성공 여부 확인
 	if (!writer.isOpened()) {
 		cerr << "Could not open the output video file for write\n";
@@ -357,6 +363,11 @@ int video_main(string videoname, string filename) {
 
 	int count = 0;
 
+	//우선정지 검출 결과 변수
+
+	bool stop;
+
+
 	while (1)
 	{
 
@@ -365,6 +376,20 @@ int video_main(string videoname, string filename) {
 		if (img_bgr.empty()) break;
 
 
+
+		//우선정지 판단 함수 호출(쓰레드 사용 전까지 라인검출과 같이 처리하는? 방식으로...)
+		stop = is_priority_stop(img_bgr);
+
+		if (stop == true)							//운행을 중단함 (추가 작성 필요)
+		{
+			cout << "멈춰!" << endl;
+		}
+		//else										//아닐땐 운행을 계속
+		//{
+
+		//}
+
+		
 		//미리 정해둔 흰색, 노란색 범위 내에 있는 부분만 차선후보로 따로 저장함 
 		Mat img_filtered;
 		filter_colors(img_bgr, img_filtered);
@@ -439,7 +464,7 @@ int video_main(string videoname, string filename) {
 		writer << img_annotated;
 
 		count++;
-		if (count == 10) imwrite("D:\\OneDrive - 공주대학교\\자율주행_프로젝트\\curb_test.jpg", img_annotated);
+		if (count == 10) imwrite("D:\\OneDrive - 공주대학교\\자율주행_프로젝트\\line_stop_combine_encoding.jpg", img_annotated);
 
 		//결과를 화면에 보여줌 
 		Mat img_result;
@@ -449,7 +474,7 @@ int video_main(string videoname, string filename) {
 		resize(edges_bgr, edges_bgr, Size(width * SC, height * SC));
 		resize(img_mask, img_mask, Size(width * SC, height * SC));
 		hconcat(img_combine_w, edges_bgr, img_result);
-		imshow("색상필터 / 마스킹 영상", img_result);
+		//imshow("색상필터 / 마스킹 영상", img_result);
 		//imshow("마스크 영상", img_mask);
 		resize(img_annotated, img_annotated, Size(width * SC, height * SC));
 		resize(img_edges, img_edges, Size(width * SC, height * SC));
@@ -460,8 +485,16 @@ int video_main(string videoname, string filename) {
 		//클라이언트 통신 수신
 		/*char cBuffer[PACKET_SIZE] = {};
 		recv(hClient, cBuffer, PACKET_SIZE, 0);
-		printf("Recv Msg : %s\n\n", cBuffer);*/
+		printf("Recv Msg : %s\n\n", cBuffer);
+		*/
 
 		if (waitKey(1) == 27) break; //ESC키 누르면 종료  
+
+		
+		
+
+		
+		
+		
 	}
 }
