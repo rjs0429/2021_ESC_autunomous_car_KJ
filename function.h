@@ -7,7 +7,8 @@
 #include <math.h>
 #include <time.h>
 #include <Windows.h>
-#include<winsock.h> 
+#include <winsock.h> 
+#include <limits.h> 
 
 using namespace std;
 

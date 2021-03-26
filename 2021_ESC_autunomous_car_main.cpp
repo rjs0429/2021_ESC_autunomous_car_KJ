@@ -15,7 +15,7 @@ int main(int, char**)
 	start = clock();
 
 	//영상처리 시작
-	video_main("D:\\OneDrive - 공주대학교\\자율주행 프로젝트\\Untitled2.mp4", "D:\\OneDrive - 공주대학교\\자율주행 프로젝트\\live.avi");
+	video_main("D:\\OneDrive - 공주대학교\\자율주행 프로젝트\\Untitled5.mp4", "D:\\OneDrive - 공주대학교\\자율주행 프로젝트\\live.avi");
 
 	end = clock();
 	printf("타이머 : %.2f초\n\n", ((float)(end - start) / CLOCKS_PER_SEC));

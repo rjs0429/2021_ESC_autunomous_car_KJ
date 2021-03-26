@@ -1,7 +1,7 @@
 #include "function.h" 
 
 #define PI 3.1415926535
-#define SC 1.5					//영상 표시 스케일
+#define SC 0.3					//영상 표시 스케일
 
 using namespace cv;
 
@@ -9,16 +9,16 @@ using namespace cv;
 float rho = 2; // Hough 그리드의 거리 분해능(픽셀 단위)
 float theta = 1 * CV_PI / 180; // Hough 그리드의 라디안 단위의 각도 분해능
 float hough_threshold = 15;    // 최소 투표 수(Hough 그리드 셀의 교차점)
-float minLineLength = 30; // 라인을 구성하는 최소 픽셀 수
+float minLineLength = 10; // 라인을 구성하는 최소 픽셀 수
 float maxLineGap = 3;   // 연결 가능한 선 세그먼트 사이의 최대 픽셀 간격
 
 
 //Region - of - interest vertices, 관심 영역 범위 계산시 사용 
 //이미지 하단에 하단 가장자리가 있는 사다리꼴 모양을 원합니다.
-float trap_bottom_width = 1;  // 사다리꼴 하단 가장자리의 너비, 이미지 폭의 백분율로 표시됨
-float trap_top_width = 0.9;     // 사다리꼴의 위쪽 가장자리에 대해 편집
-float trap_height = 0.4;         // 이미지 높이의 백분율로 표시되는 사다리꼴 높이
-float offset_h = 0;                // offset에 지정한 픽셀만큼 아래 빈공간을 둔다
+float trap_bottom_width = 0.53;  // 사다리꼴 하단 가장자리의 너비, 이미지 폭의 백분율로 표시됨
+float trap_top_width = 0.07;     // 사다리꼴의 위쪽 가장자리에 대해 편집
+float trap_height = 0.39;         // 이미지 높이의 백분율로 표시되는 사다리꼴 높이
+float offset_h = 0.13;                // offset에 지정한 픽셀만큼 아래 빈공간을 둔다
 float offset_w = 0;                // offset에 지정한 픽셀만큼 좌우로 벌어진다.
 float offset_s = 0;                // offset에 지정한 픽셀만큼 기울기를 둔다
 
@@ -32,6 +32,10 @@ Scalar upper_yellow = Scalar(40, 255, 255);
 //영상, 크기 임시 저장소
 Mat img_combine_w, img_masked_w[2];
 int width_w, height_w;
+
+//선 좌표 임시 저장소
+int right_x1_w, right_x2_w, left_x1_w, left_x2_w;
+float check_x = 0.05;
 
 //ROI
 Mat region_of_interest(Mat img_edges, Point* points, int i)
@@ -119,7 +123,7 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 
 	//모든 선의 경사 찾기
 	//그러나 abs(경사) > slope_threshold(경사)가 있는 선에만 주의하십시오.
-	float slope_threshold = 0.5;
+	float slope_threshold = 0.05;
 	vector<float> slopes;
 	vector<Vec4i> new_lines;
 
@@ -146,8 +150,6 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 		}
 	}
 
-
-
 	// 오른쪽과 왼쪽 차선 라인을 나타내는 오른쪽_라인과 왼쪽_라인으로 구분
 	// 오른쪽/왼쪽 차선 라인은 양의/음의 기울기를 가져야 하며 이미지의 오른쪽/왼쪽 절반에 있어야 합니다.
 	vector<Vec4i> right_lines;
@@ -165,11 +167,25 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 		int y2 = line[3];
 
 		float cx = width * 0.5; //x 이미지 중앙의 좌표
+		int sc = width * check_x; // 기준좌표
 
-		if (slope > 0 && x1 > cx && x2 > cx)
-			right_lines.push_back(line);
-		else if (slope < 0 && x1 < cx && x2 < cx)
-			left_lines.push_back(line);
+		if (slope > 0) {
+			if (right_x1_w == INT_MAX || right_x2_w == INT_MAX) {
+				if (x1 > cx && x2 > cx)
+					right_lines.push_back(line);
+			}
+			else if (x1 > right_x1_w - sc && x1 < right_x1_w + sc && x2 > right_x2_w - sc && x2 < right_x2_w + sc)
+				right_lines.push_back(line);
+		}
+		else if (slope < 0) {
+			if (left_x1_w == INT_MAX || left_x2_w == INT_MAX) {
+				if (slope < 0 && x1 < cx && x2 < cx)
+					left_lines.push_back(line);
+			}
+			else if (slope < 0 && x1 > left_x1_w - sc && x1 < left_x1_w + sc && x2 > left_x2_w - sc && x2 < left_x2_w + sc)
+				left_lines.push_back(line);
+		}
+
 	}
 
 
@@ -275,17 +291,30 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 
 
 	//이미지에 오른쪽 및 왼쪽 선 그리기 / 각 차선의 기울기 계산 및 통신
-	float slope_r = 0;
-	float slope_l = 0;
+	//float slope_r = 0;
+	//float slope_l = 0;
 	float slope_s = 0;
 	if (draw_right) {
 		line(img_line, Point(right_x1, y1), Point(right_x2, y2), Scalar(255, 200, 0), 10);
-		slope_r = atan2(y2 - y1, right_x2 - right_x1) * 180 / PI + 90;
+		//slope_r = atan2(y2 - y1, right_x2 - right_x1) * 180 / PI + 90;
+		right_x1_w = right_x1;
+		right_x2_w = right_x2;
+	}
+	else {
+		right_x1_w = INT_MAX;
+		right_x2_w = INT_MAX;
 	}
 	if (draw_left) {
 		line(img_line, Point(left_x1, y1), Point(left_x2, y2), Scalar(255, 200, 200), 10);
-		slope_l = atan2(y2 - y1, left_x2 - left_x1) * 180 / PI + 90;
+		//slope_l = atan2(y2 - y1, left_x2 - left_x1) * 180 / PI + 90;
+		left_x1_w = left_x1;
+		left_x2_w = left_x2;
 	}
+	else {
+		left_x1_w = INT_MAX;
+		left_x2_w = INT_MAX;
+	}
+
 	if (draw_right || draw_left) {
 		if (draw_right && draw_left) {
 			line(img_line, Point(width_w / 2, height_w), Point((right_x2 + left_x2) / 2, y2), Scalar(100, 100, 100), 10);
@@ -301,13 +330,19 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 		}
 	}
 	tcp_server(slope_s);
-	cout << "왼쪽차선 기울기 : " << slope_l << "\t오른쪽차선 기울기 : " << slope_r << "\n\t\t중앙선 기울기 : " << slope_s << endl;
+	//cout << "왼쪽차선 기울기 : " << slope_l << "\t오른쪽차선 기울기 : " << slope_r << "\n\t\t중앙선 기울기 : " << slope_s << endl;
+	cout << "중앙선 기울기 : " << slope_s << endl;
 }
 
 //영상처리 메인
 int video_main(string videoname, string filename) {
 	char buf[256];
 	Mat img_bgr, img_gray, img_edges, img_edge[2], img_hough, img_annotated;
+
+	right_x1_w = INT_MAX;
+	right_x2_w = INT_MAX;
+	left_x1_w = INT_MAX;
+	left_x2_w = INT_MAX;
 
 	VideoCapture videoCapture(videoname);
 
