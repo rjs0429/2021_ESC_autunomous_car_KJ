@@ -1,26 +1,27 @@
 #include "function.h" 
 
 #define PI 3.1415926535
-#define SC 0.3					//영상 표시 스케일
+#define SC 1.5					//영상 표시 스케일
 
 using namespace cv;
 
 //Hough Transform 파라미터
-float rho = 2; // Hough 그리드의 거리 분해능(픽셀 단위)
+float rho = 1; // Hough 그리드의 거리 분해능(픽셀 단위)
 float theta = 1 * CV_PI / 180; // Hough 그리드의 라디안 단위의 각도 분해능
-float hough_threshold = 15;    // 최소 투표 수(Hough 그리드 셀의 교차점)
-float minLineLength = 10; // 라인을 구성하는 최소 픽셀 수
+float hough_threshold = 5;    // 최소 투표 수(Hough 그리드 셀의 교차점)
+float minLineLength = 5; // 라인을 구성하는 최소 픽셀 수
 float maxLineGap = 3;   // 연결 가능한 선 세그먼트 사이의 최대 픽셀 간격
 
 
 //Region - of - interest vertices, 관심 영역 범위 계산시 사용 
 //이미지 하단에 하단 가장자리가 있는 사다리꼴 모양을 원합니다.
-float trap_bottom_width = 0.53;  // 사다리꼴 하단 가장자리의 너비, 이미지 폭의 백분율로 표시됨
-float trap_top_width = 0.07;     // 사다리꼴의 위쪽 가장자리에 대해 편집
-float trap_height = 0.39;         // 이미지 높이의 백분율로 표시되는 사다리꼴 높이
+float trap_bottom_width = 1;  // 사다리꼴 하단 가장자리의 너비, 이미지 폭의 백분율로 표시됨
+float trap_top_width = 0.9;     // 사다리꼴의 위쪽 가장자리에 대해 편집
+float trap_height = 0.5;         // 이미지 높이의 백분율로 표시되는 사다리꼴 높이
 float offset_h = 0.13;                // offset에 지정한 픽셀만큼 아래 빈공간을 둔다
 float offset_w = 0;                // offset에 지정한 픽셀만큼 좌우로 벌어진다.
 float offset_s = 0;                // offset에 지정한 픽셀만큼 기울기를 둔다
+int angle = 42;					//곡선으로 인식하는 차선의 각도
 
 
 //차선 색깔 범위 
@@ -31,11 +32,11 @@ Scalar upper_yellow = Scalar(40, 255, 255);
 
 //영상, 크기 임시 저장소
 Mat img_combine_w, img_masked_w[2];
-int width_w, height_w;
+//int width_w, height_w;
 
 //선 좌표 임시 저장소
-int right_x1_w, right_x2_w, left_x1_w, left_x2_w;
-float check_x = 0.05;
+int right_x1_w, right_x2_w, left_x1_w, left_x2_w, y1_w, y2_w;
+float check_x = 0.07;
 
 //ROI
 Mat region_of_interest(Mat img_edges, Point* points, int i)
@@ -97,6 +98,32 @@ void filter_colors(Mat _img_bgr, Mat& img_filtered)
 	img_combine.copyTo(img_filtered);
 }
 
+int point_calculation_x(Point po1, Point po2, int focus) {
+	float a, b;
+	float x1 = po1.x;
+	float y1 = po1.y;
+	float x2 = po2.x;
+	float y2 = po2.y;
+
+	a = (y1 - y2) / (x1 - x2);
+	b = y1 - (a * x1);
+
+	return (focus - b) / a;
+}
+
+int point_calculation_y(Point po1, Point po2, int focus) {
+	float a, b;
+	float x1 = po1.x;
+	float y1 = po1.y;
+	float x2 = po2.x;
+	float y2 = po2.y;
+
+	a = (y1 - y2) / (x1 - x2);
+	b = y1 - (a * x1);
+
+	return a * focus + b;
+}
+
 void draw_line(Mat& img_line, vector<Vec4i> lines)
 {
 	if (lines.size() == 0) return;
@@ -123,7 +150,7 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 
 	//모든 선의 경사 찾기
 	//그러나 abs(경사) > slope_threshold(경사)가 있는 선에만 주의하십시오.
-	float slope_threshold = 0.05;
+	float slope_threshold = 0.5;
 	vector<float> slopes;
 	vector<Vec4i> new_lines;
 
@@ -171,21 +198,32 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 
 		if (slope > 0) {
 			if (right_x1_w == INT_MAX || right_x2_w == INT_MAX) {
-				if (x1 > cx && x2 > cx)
+				if (/*x1 > cx && */x2 > cx) {
 					right_lines.push_back(line);
+				}
 			}
-			else if (x1 > right_x1_w - sc && x1 < right_x1_w + sc && x2 > right_x2_w - sc && x2 < right_x2_w + sc)
-				right_lines.push_back(line);
+			else {
+				int c_x1 = point_calculation_x(Point(x1, y1), Point(x2, y2), y1_w);
+				int c_x2 = point_calculation_x(Point(x1, y1), Point(x2, y2), y2_w);
+				if (c_x1 > right_x1_w - sc && c_x1 < right_x1_w + sc && c_x2 > right_x2_w - sc && c_x2 < right_x2_w + sc) {
+					right_lines.push_back(line);
+				}
+			}
 		}
 		else if (slope < 0) {
 			if (left_x1_w == INT_MAX || left_x2_w == INT_MAX) {
-				if (slope < 0 && x1 < cx && x2 < cx)
+				if (x1 < cx/* && x2 < cx*/) {
 					left_lines.push_back(line);
+				}
 			}
-			else if (slope < 0 && x1 > left_x1_w - sc && x1 < left_x1_w + sc && x2 > left_x2_w - sc && x2 < left_x2_w + sc)
-				left_lines.push_back(line);
+			else {
+				int c_x1 = point_calculation_x(Point(x1, y1), Point(x2, y2), y1_w);
+				int c_x2 = point_calculation_x(Point(x1, y1), Point(x2, y2), y2_w);
+				if (c_x1 > left_x1_w - sc && c_x1 < left_x1_w + sc && c_x2 > left_x2_w - sc && c_x2 < left_x2_w + sc) {
+					left_lines.push_back(line);
+				}
+			}
 		}
-
 	}
 
 
@@ -291,14 +329,19 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 
 
 	//이미지에 오른쪽 및 왼쪽 선 그리기 / 각 차선의 기울기 계산 및 통신
-	//float slope_r = 0;
-	//float slope_l = 0;
-	float slope_s = 0;
+	float slope_r = 0;
+	float slope_l = 0;
+	float slope_c = 0;
+	float slope_parameter = 0;
+
+	//각 측 차선 그리기
 	if (draw_right) {
 		line(img_line, Point(right_x1, y1), Point(right_x2, y2), Scalar(255, 200, 0), 10);
-		//slope_r = atan2(y2 - y1, right_x2 - right_x1) * 180 / PI + 90;
+		slope_r = atan2(right_x1 - right_x2, y1 - y2) * 180 / PI;
 		right_x1_w = right_x1;
 		right_x2_w = right_x2;
+		y1_w = y1;
+		y2_w = y2;
 	}
 	else {
 		right_x1_w = INT_MAX;
@@ -306,32 +349,58 @@ void draw_line(Mat& img_line, vector<Vec4i> lines)
 	}
 	if (draw_left) {
 		line(img_line, Point(left_x1, y1), Point(left_x2, y2), Scalar(255, 200, 200), 10);
-		//slope_l = atan2(y2 - y1, left_x2 - left_x1) * 180 / PI + 90;
+		slope_l = atan2(left_x1 - left_x2, y1 - y2) * 180 / PI;
 		left_x1_w = left_x1;
 		left_x2_w = left_x2;
+		y1_w = y1;
+		y2_w = y2;
 	}
 	else {
 		left_x1_w = INT_MAX;
 		left_x2_w = INT_MAX;
 	}
 
+	//중앙선 제어
+	int draw_center = -1;
 	if (draw_right || draw_left) {
 		if (draw_right && draw_left) {
-			line(img_line, Point(width_w / 2, height_w), Point((right_x2 + left_x2) / 2, y2), Scalar(100, 100, 100), 10);
-			slope_s = atan2(height_w - y2, (right_x2 + left_x2) / 2 - width_w / 2) * 180 / PI;
+			draw_center = (right_x2 + left_x2) / 2;
 		}
 		else if (draw_right) {
-			line(img_line, Point(width_w / 2, height_w), Point((right_x2 + 0) / 2, y2), Scalar(100, 100, 100), 10);
-			slope_s = atan2(height_w - y2, (right_x2 + 0) / 2 - width_w / 2) * 180 / PI;
+			if (abs(int(slope_r)) < angle) {
+				draw_center = (right_x2 + 0) / 2;
+			}
+			else {
+				int focus = (width * 0.5) + (width * 0.25);
+				Point po = Point(focus, point_calculation_y(Point(right_x1, y1), Point(right_x2, y2), focus));
+				line(img_line, Point(focus, height * 0.4), po, Scalar(50, 50, 50), 10);
+				line(img_line, Point(focus, height + height * 0.1), po, Scalar(50, 50, 255), 10);
+			}
 		}
 		else if (draw_left) {
-			line(img_line, Point(width_w / 2, height_w), Point((width_w + left_x2) / 2, y2), Scalar(100, 100, 100), 10);
-			slope_s = atan2(height_w - y2, (width_w + left_x2) / 2 - width_w / 2) * 180 / PI;
+			if (abs(int(slope_l)) < angle) {
+				draw_center = (width + left_x2) / 2;
+			}
+			else {
+				int focus = (width * 0.5) - (width * 0.25);
+				Point po = Point(focus, point_calculation_y(Point(left_x1, y1), Point(left_x2, y2), focus));
+				line(img_line, Point(focus, height * 0.4), po, Scalar(50, 50, 50), 10);
+				line(img_line, Point(focus, height + height * 0.1), po, Scalar(50, 50, 255), 10);
+			}
+		}
+
+		//중앙선 그리기
+		if (draw_center != -1) {
+			line(img_line, Point(width / 2, height), Point(draw_center, y2), Scalar(100, 100, 100), 10);
+			slope_c = atan2(height - y2, draw_center - width / 2) * 180 / PI;
+			slope_parameter = slope_c;
 		}
 	}
-	tcp_server(slope_s);
-	//cout << "왼쪽차선 기울기 : " << slope_l << "\t오른쪽차선 기울기 : " << slope_r << "\n\t\t중앙선 기울기 : " << slope_s << endl;
-	cout << "중앙선 기울기 : " << slope_s << endl;
+
+
+	tcp_server(slope_parameter);
+	//cout << "왼쪽차선 기울기 : " << slope_l << "\t오른쪽차선 기울기 : " << slope_r << "\n\t\t중앙선 기울기 : " << slope_c << endl;
+	cout << "전달 값 : " << slope_parameter << endl;
 }
 
 //영상처리 메인
@@ -375,8 +444,8 @@ int video_main(string videoname, string filename) {
 	videoCapture.read(img_bgr);
 	int width = img_bgr.size().width;
 	int height = img_bgr.size().height;
-	width_w = width;
-	height_w = height;
+	//width_w = width;
+	//height_w = height;
 
 	int count = 0;
 
@@ -466,11 +535,11 @@ int video_main(string videoname, string filename) {
 
 		//결과를 화면에 보여줌 
 		Mat img_result;
-		Mat img_mask;
-		addWeighted(img_masked_w[0], 1.0, img_masked_w[1], 1.0, 0.0, img_mask);
+		//Mat img_mask;
+		//addWeighted(img_masked_w[0], 1.0, img_masked_w[1], 1.0, 0.0, img_mask);
 		resize(img_combine_w, img_combine_w, Size(width * SC, height * SC));
 		resize(edges_bgr, edges_bgr, Size(width * SC, height * SC));
-		resize(img_mask, img_mask, Size(width * SC, height * SC));
+		//resize(img_mask, img_mask, Size(width * SC, height * SC));
 		hconcat(img_combine_w, edges_bgr, img_result);
 		imshow("색상필터 / 마스킹 영상", img_result);
 		//imshow("마스크 영상", img_mask);
