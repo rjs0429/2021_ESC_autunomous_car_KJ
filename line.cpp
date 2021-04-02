@@ -4,6 +4,9 @@
 #define SC 1.5					//영상 표시 스케일
 
 using namespace cv;
+using  std::vector;
+using  std::cin;
+using  std::cerr;
 
 //Hough Transform 파라미터
 float rho = 1; // Hough 그리드의 거리 분해능(픽셀 단위)
@@ -16,12 +19,12 @@ float maxLineGap = 3;   // 연결 가능한 선 세그먼트 사이의 최대 픽셀 간격
 //Region - of - interest vertices, 관심 영역 범위 계산시 사용 
 //이미지 하단에 하단 가장자리가 있는 사다리꼴 모양을 원합니다.
 float trap_bottom_width = 1;  // 사다리꼴 하단 가장자리의 너비, 이미지 폭의 백분율로 표시됨
-float trap_top_width = 0.9;     // 사다리꼴의 위쪽 가장자리에 대해 편집
-float trap_height = 0.5;         // 이미지 높이의 백분율로 표시되는 사다리꼴 높이
+float trap_top_width = 0.7;     // 사다리꼴의 위쪽 가장자리에 대해 편집
+float trap_height = 0.4;         // 이미지 높이의 백분율로 표시되는 사다리꼴 높이
 float offset_h = 0.13;                // offset에 지정한 픽셀만큼 아래 빈공간을 둔다
 float offset_w = 0;                // offset에 지정한 픽셀만큼 좌우로 벌어진다.
 float offset_s = 0;                // offset에 지정한 픽셀만큼 기울기를 둔다
-int angle = 42;					//곡선으로 인식하는 차선의 각도
+int angle = 60;					//곡선으로 인식하는 차선의 각도
 
 
 //차선 색깔 범위 
@@ -454,8 +457,7 @@ int video_main(string videoname, string filename) {
 
 		//원본 영상을 읽어옴 
 		videoCapture.read(img_bgr);
-		if (img_bgr.empty()) break;
-
+		if (img_bgr.empty()) break;		
 
 		//미리 정해둔 흰색, 노란색 범위 내에 있는 부분만 차선후보로 따로 저장함 
 		Mat img_filtered;

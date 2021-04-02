@@ -10,7 +10,9 @@
 #include <winsock.h> 
 #include <limits.h> 
 
-using namespace std;
+using  std::string;
+using  std::cout;
+using  std::endl;
 
 //통신 보내기
 void tcp_server(float msg);
