@@ -6,7 +6,7 @@
 #pragma comment(lib, "ws2_32")      //위에서 선언한 헤더파일들을 가져다 쓰기위한 링크
 
 //통신 on/off
-boolean Communication = false;
+boolean Communication = true;
 
 //통신변수
 WSADATA wsaData;
@@ -14,22 +14,36 @@ SOCKET hListen;
 SOCKADDR_IN tListenAddr = {};
 SOCKADDR_IN tClntAddr = {};
 int iClntSize;
-SOCKET hClient;
+SOCKET hClient;	
 
 //통신 보내기
-void tcp_server(float msg) {
-	if (Communication) {
-		char temp[4];
-		memcpy(temp, &msg, sizeof(float));
+void tcp_server(const char menu[], float msg) {
+	if (Communication != false) {
+
+		char temp[16] = { 0 };				//문자 2 + numb + '\0' = 13 ~ 16 
+		char numb[13] = { 0 };				//숫자 2x4 + 1 ~3x4 + 1 = 9 ~ 13 인데 10부터 되야하는 이유는..?
+
+		sprintf_s(numb, sizeof(numb), "%.2f", msg);
+		//cout << "numb : " << numb << endl;
+
+		strcpy_s(temp, sizeof(temp), menu);
+
+
+		strcat_s(temp, " ");
+		strcat_s(temp, numb);
+
+		//cout << "temp : " << temp << endl;
+		//cout << "Server Msg : menu - " << menu << " / float - " << msg << endl;
 		send(hClient, temp, strlen(temp), 0);
-		cout << "Server Msg : " << msg << endl;
+
 	}
 }
 
+
 //통신 시작 / 종료
-void tcp_server_onoff(double check) {
-	if (Communication) {
-		if (check) {
+void tcp_server_onoff(bool check) {
+	if (Communication != false) {
+		if (check != false) {
 			WSAStartup(MAKEWORD(2, 2), &wsaData);
 			hListen = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 			tListenAddr.sin_family = AF_INET;
@@ -39,6 +53,8 @@ void tcp_server_onoff(double check) {
 			listen(hListen, SOMAXCONN);
 			iClntSize = sizeof(tClntAddr);
 			hClient = accept(hListen, (SOCKADDR*)&tClntAddr, &iClntSize);
+
+			cout << "연결 성공!" << endl;
 		}
 		else {
 			closesocket(hClient);
